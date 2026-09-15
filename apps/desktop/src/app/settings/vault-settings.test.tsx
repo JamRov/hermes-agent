@@ -64,7 +64,7 @@ describe('VaultSettings', () => {
     renderVault()
 
     await waitFor(() => expect(screen.getByText('Nothing saved yet')).toBeTruthy())
-    expect(requestGateway).toHaveBeenCalledWith('vault.list', {})
+    expect(requestGateway).toHaveBeenCalledWith('vault.list', { profile: 'default' })
   })
 
   it('lists items with label, kind badge, identifier, and origin — never passwords', async () => {
@@ -119,6 +119,7 @@ describe('VaultSettings', () => {
 
     await waitFor(() =>
       expect(requestGateway).toHaveBeenCalledWith('vault.add', {
+        profile: 'default',
         kind: 'login',
         label: 'GitHub work',
         origin: 'https://github.com',
@@ -142,7 +143,9 @@ describe('VaultSettings', () => {
     await waitFor(() => expect(screen.getByText('Delete this item?')).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
-    await waitFor(() => expect(requestGateway).toHaveBeenCalledWith('vault.remove', { id: 'vault_abc123' }))
+    await waitFor(() =>
+      expect(requestGateway).toHaveBeenCalledWith('vault.remove', { profile: 'default', id: 'vault_abc123' })
+    )
   })
 
   it('unlocks a password manager from Settings; the master password leaves only via vault.unlock', async () => {
@@ -199,7 +202,11 @@ describe('VaultSettings', () => {
     )
 
     await waitFor(() =>
-      expect(requestGateway).toHaveBeenCalledWith('vault.unlock', { name: 'onepassword', password: 'correct horse' })
+      expect(requestGateway).toHaveBeenCalledWith('vault.unlock', {
+        profile: 'default',
+        name: 'onepassword',
+        password: 'correct horse'
+      })
     )
     await waitFor(() => expect(screen.getByText('Unlocked')).toBeTruthy())
     expect(screen.queryByPlaceholderText('Master password')).toBeNull()

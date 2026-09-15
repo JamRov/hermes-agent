@@ -165,7 +165,7 @@ export function VaultSettings() {
 
   const requestGateway = useCallback(
     <T,>(method: string, params: Record<string, unknown> = {}) =>
-      requestGatewayForAgent<T>(connectionId, scopeProfile, method, params),
+      requestGatewayForAgent<T>(connectionId, scopeProfile, method, { ...params, profile: scopeProfile }),
     [connectionId, scopeProfile]
   )
 

@@ -96,6 +96,7 @@ it('a master-password draft is wiped on a profile switch and never submitted to 
   expect(calls.filter(c => c.method === 'vault.unlock')).toHaveLength(0)
   // Reads for the new owner target the new profile, not the old one.
   await waitFor(() => expect(calls.some(c => c.profile === 'other-profile' && c.method === 'vault.list')).toBe(true))
+  expect(calls.filter(c => c.profile === 'other-profile').every(c => c.params.profile === 'other-profile')).toBe(true)
 })
 
 it('a late list response from profile A never paints under profile B', async () => {
@@ -155,6 +156,7 @@ it('vault.add secrets never enter the mutation cache', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(calls.some(c => c.method === 'vault.add')).toBe(true))
+  expect(calls.find(c => c.method === 'vault.add')?.params.profile).toBe('default')
   expect((calls.find(c => c.method === 'vault.add')!.params.secret as Record<string, string>).password).toBe(
     'fixture-retained-password'
   )
@@ -210,6 +212,11 @@ it('routes a remote owner profile that is absent locally for load and save', asy
       .filter(c => c.method === 'vault.list' || c.method === 'vault.add')
       .every(c => c.connectionId === 'remote-a' && c.profile === 'remote-only')
   ).toBe(true)
+  expect(
+    calls
+      .filter(c => c.method === 'vault.list' || c.method === 'vault.add')
+      .every(c => c.params.profile === 'remote-only')
+  ).toBe(true)
 })
 
 it('keeps same-named profiles isolated when switching connections A to B to A', async () => {
@@ -258,10 +265,12 @@ it('keeps same-named profiles isolated when switching connections A to B to A', 
       true
     )
   )
+  expect(calls.find(c => c.method === 'vault.add' && c.connectionId === 'source-b')?.params.profile).toBe('default')
   await waitFor(() => expect(screen.queryByLabelText('Password')).toBeNull())
 
   act(() => $connection.set(connection('source-a')))
   await waitFor(() => expect(screen.getByText('source-a')).toBeTruthy())
   expect(screen.getByText('source-a')).toBeTruthy()
   expect(calls.filter(c => c.method === 'vault.list').every(c => c.profile === 'default')).toBe(true)
+  expect(calls.filter(c => c.method === 'vault.list').every(c => c.params.profile === 'default')).toBe(true)
 })
