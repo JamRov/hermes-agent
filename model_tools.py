@@ -440,7 +440,18 @@ def _rewrite_browser_vault(td: Dict[str, Any], available: set) -> Optional[Dict[
     if preview and ("browser_exec" in available or "browser_type" in available):
         concrete += " for the managed browser, or drive_preview(action='type') for the preview"
     fn = td["function"]
-    return _fn_def({**fn, "description": fn.get("description", "").replace(_VAULT_INPUT_TOOL_HINT, concrete)})
+    rewritten = {**fn, "description": fn.get("description", "").replace(_VAULT_INPUT_TOOL_HINT, concrete)}
+    parameters = fn.get("parameters", {})
+    properties = parameters.get("properties", {})
+    if preview and "target" in properties:
+        rewritten["parameters"] = {**parameters, "properties": {
+            **properties, "target": {**properties["target"], "default": "preview"},
+        }}
+        rewritten["description"] += (
+            " In this session, an omitted target uses the in-app preview. "
+            "Set target='browser' explicitly for the separate managed browser."
+        )
+    return _fn_def(rewritten)
 
 
 _VAULT_NO_PASSWORD_NOTE = (" Vault note: on a login/checkout form call browser_vault_list first, then browser_vault_fill, or "
@@ -459,7 +470,9 @@ def _rewrite_input_tool_for_vault(td: Dict[str, Any], available: set) -> Optiona
     fn = td["function"]
     note = _VAULT_NO_PASSWORD_NOTE
     if fn["name"] == "drive_preview":
-        note += " For this in-app page, set target='preview' on those vault operations; their default targets a different, managed browser."
+        note += " Vault operations default to this session's in-app preview; target='preview' also selects it explicitly."
+    elif "drive_preview" in available:
+        note += " For this managed browser, set target='browser' on vault operations; this session defaults to the in-app preview."
     return _fn_def({**fn, "description": fn.get("description", "") + note})
 
 

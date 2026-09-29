@@ -37,11 +37,12 @@ registered with the redactor so a later page read cannot echo it back.
 ### Desktop preview or managed browser
 
 The Desktop preview and the managed automation browser are separate pages.
-For a login open in the preview, the agent uses `target: "preview"` with
-`browser_vault_fill`, `browser_vault_save_login`, or `browser_vault_enter_code`.
-This uses the preview already open beside the chat and does not require a
-separate browser runtime. The default `target: "browser"` keeps using the
-managed browser.
+In a Desktop session with preview tools, `browser_vault_fill`,
+`browser_vault_save_login`, and `browser_vault_enter_code` default to the preview
+already open beside the chat. This also works when preview tools are discovered
+on demand and does not require a separate browser runtime. The agent can select
+`target: "preview"` explicitly, or `target: "browser"` for the separate managed
+browser. Sessions without preview tools keep the managed-browser default.
 
 Keep the chat and its preview page selected while filling. Hermes binds each
 operation to that window and page, and refuses if the target changes or navigates.

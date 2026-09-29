@@ -720,7 +720,7 @@ BROWSER_VAULT_ENTER_CODE_SCHEMA = {
         "the conversation: never ask for it in chat, never type it with the browser's input tool. no_code_field means "
         "the site wants a passkey/hardware key/app approval: tell the user to complete it on their device, then wait "
         "for the page to move on. Keep the same target as the password fill: 'preview' for the Desktop "
-        "preview, or the default 'browser' for the managed browser."
+        "preview, or 'browser' for the managed browser."
     ),
     "parameters": {
         "type": "object",
