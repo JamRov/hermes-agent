@@ -209,6 +209,27 @@ describe('VaultSettings', () => {
     expect(screen.getByRole('button', { name: 'Lock' })).toBeTruthy()
   })
 
+  it('offers native 1Password unlock from the existing dialog with an empty password', async () => {
+    requestGateway.mockImplementation(async (method: string) => {
+      if (method === 'vault.list') return { items: [] }
+      if (method === 'vault.sources') {
+        return {
+          sources: [{ name: 'onepassword', display_name: '1Password', enabled: true, needs_unlock: true, unlocked: false, installed: true }]
+        }
+      }
+
+      return { unlocked: true }
+    })
+    renderVault()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Unlock' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Unlock with 1Password' }))
+
+    await waitFor(() =>
+      expect(requestGateway).toHaveBeenCalledWith('vault.unlock', { name: 'onepassword', password: '' })
+    )
+  })
+
   it('refreshes password-manager detection when the page is reopened', async () => {
     let installed = false
     requestGateway.mockImplementation(async (method: string) => {

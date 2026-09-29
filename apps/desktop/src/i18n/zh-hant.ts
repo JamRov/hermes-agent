@@ -561,7 +561,9 @@ export const zhHant = defineLocale({
         lock: '鎖定',
         unlocked: name => `${name} 已在本工作階段解鎖。`,
         unlockTitle: name => `解鎖 ${name}`,
-        unlockDescription: '輸入主密碼。它會交給本機的密碼管理器後立即捨棄，不會被儲存、記錄或顯示給代理。',
+        unlockDescription: '輸入主密碼。密碼會交給執行 Hermes 後端的電腦上的密碼管理器後立即捨棄，不會被儲存、記錄或顯示給代理。',
+        unlockOnePasswordDescription: '輸入主密碼，或在執行 Hermes 後端的電腦上核准 1Password 登入。輸入的密碼會交給該電腦上的管理器後立即捨棄，不會被儲存、記錄或顯示給代理。',
+        unlockWithOnePasswordApp: '使用 1Password 解鎖',
         masterPasswordPlaceholder: '主密碼'
       }
     },

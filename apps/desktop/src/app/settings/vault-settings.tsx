@@ -550,7 +550,11 @@ export function VaultSettings({ subpage }: VaultSettingsProps = {}) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle icon={KeyRound}>{v.sources.unlockTitle(unlockTarget?.display_name ?? '')}</DialogTitle>
-            <DialogDescription>{v.sources.unlockDescription}</DialogDescription>
+            <DialogDescription>
+              {unlockTarget?.name === 'onepassword'
+                ? v.sources.unlockOnePasswordDescription
+                : v.sources.unlockDescription}
+            </DialogDescription>
           </DialogHeader>
           <form
             className="grid gap-3"
@@ -575,6 +579,20 @@ export function VaultSettings({ subpage }: VaultSettingsProps = {}) {
             />
             {unlockError && <p className="text-xs text-destructive">{unlockError}</p>}
             <DialogFooter>
+              {unlockTarget?.name === 'onepassword' && (
+                <Button
+                  disabled={unlockSource.isPending}
+                  onClick={() => {
+                    pendingMasterPassword.current = ''
+                    setMasterPassword('')
+                    unlockSource.mutate({ name: unlockTarget.name })
+                  }}
+                  type="button"
+                  variant="outline"
+                >
+                  {v.sources.unlockWithOnePasswordApp}
+                </Button>
+              )}
               <Button onClick={closeUnlock} type="button" variant="ghost">
                 {t.common.cancel}
               </Button>

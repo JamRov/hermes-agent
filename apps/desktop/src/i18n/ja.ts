@@ -614,7 +614,10 @@ export const ja = defineLocale({
         unlocked: name => `${name} をこのセッションでロック解除しました。`,
         unlockTitle: name => `${name} のロックを解除`,
         unlockDescription:
-          'マスターパスワードを入力してください。このマシン上のパスワードマネージャーに渡された後に破棄され、保存・記録されることも、エージェントに表示されることもありません。',
+          'マスターパスワードを入力してください。Hermes バックエンドを実行しているコンピューター上のマネージャーに渡された後に破棄され、保存・記録されることも、エージェントに表示されることもありません。',
+        unlockOnePasswordDescription:
+          'マスターパスワードを入力するか、Hermes バックエンドを実行しているコンピューターで 1Password のサインインを承認してください。入力したパスワードはそのコンピューター上のマネージャーに渡された後に破棄され、保存・記録されることも、エージェントに表示されることもありません。',
+        unlockWithOnePasswordApp: '1Password でロック解除',
         masterPasswordPlaceholder: 'マスターパスワード'
       }
     },
