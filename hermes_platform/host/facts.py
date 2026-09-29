@@ -293,14 +293,44 @@ def _windows_interactive_session() -> bool:
     from ctypes import wintypes
 
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    process_id = kernel32.GetCurrentProcessId()
+    kernel32.GetCurrentProcessId.argtypes = []
+    kernel32.GetCurrentProcessId.restype = wintypes.DWORD
+    kernel32.ProcessIdToSessionId.argtypes = [wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    kernel32.ProcessIdToSessionId.restype = wintypes.BOOL
     session_id = wintypes.DWORD()
-    if not kernel32.ProcessIdToSessionId(process_id, ctypes.byref(session_id)) or session_id.value == 0:
+    if not kernel32.ProcessIdToSessionId(kernel32.GetCurrentProcessId(), ctypes.byref(session_id)):
         return False
-    active_session = kernel32.WTSGetActiveConsoleSessionId()
-    if active_session != 0xFFFFFFFF and active_session == session_id.value:
-        return True
-    return bool(kernel32.GetProcessWindowStation())
+    if session_id.value == 0:
+        return False
+
+    # RDP has its own interactive station; the physical console's session ID
+    # cannot establish whether this process can show UI. Services also have a
+    # window station, so a non-null handle alone is insufficient.
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.GetProcessWindowStation.argtypes = []
+    user32.GetProcessWindowStation.restype = wintypes.HANDLE
+    user32.GetUserObjectInformationW.argtypes = [
+        wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p,
+        wintypes.DWORD, ctypes.POINTER(wintypes.DWORD),
+    ]
+    user32.GetUserObjectInformationW.restype = wintypes.BOOL
+
+    class USEROBJECTFLAGS(ctypes.Structure):
+        _fields_ = [
+            ("fInherit", wintypes.BOOL), ("fReserved", wintypes.BOOL),
+            ("dwFlags", wintypes.DWORD),
+        ]
+
+    station = user32.GetProcessWindowStation()
+    if not station:
+        return False
+    flags = USEROBJECTFLAGS()
+    needed = wintypes.DWORD()
+    if not user32.GetUserObjectInformationW(
+        station, 1, ctypes.byref(flags), ctypes.sizeof(flags), ctypes.byref(needed),
+    ):
+        return False
+    return bool(flags.dwFlags & 1)  # UOI_FLAGS / WSF_VISIBLE
 
 
 def interactive_session() -> bool:
