@@ -1050,7 +1050,10 @@ export const esOverrides = {
         unlocked: name => `${name} desbloqueado para esta sesión.`,
         unlockTitle: name => `Desbloquear ${name}`,
         unlockDescription:
-          'Introduce tu contraseña maestra. Se entrega al gestor de contraseñas de este equipo y se descarta: nunca se guarda, se registra ni se muestra al agente.',
+          'Introduce tu contraseña maestra. Se entrega al gestor de contraseñas en el equipo que ejecuta el backend de Hermes y se descarta: nunca se guarda, se registra ni se muestra al agente.',
+        unlockOnePasswordDescription:
+          'Introduce tu contraseña maestra o aprueba el inicio de sesión de 1Password en el equipo que ejecuta el backend de Hermes. La contraseña se entrega al gestor en ese equipo y se descarta: nunca se guarda, se registra ni se muestra al agente.',
+        unlockWithOnePasswordApp: 'Desbloquear con 1Password',
         masterPasswordPlaceholder: 'Contraseña maestra'
       }
     },

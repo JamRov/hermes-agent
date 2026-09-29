@@ -1051,7 +1051,10 @@ export const frOverrides = {
         unlocked: name => `${name} est déverrouillé pour cette session.`,
         unlockTitle: name => `Déverrouiller ${name}`,
         unlockDescription:
-          "Entrez votre mot de passe principal. Il est transmis au gestionnaire de mots de passe sur cette machine et jeté — il n'est jamais stocké, enregistré, ni montré à l'agent.",
+          "Entrez votre mot de passe principal. Il est transmis au gestionnaire sur l'ordinateur qui exécute le backend Hermes puis supprimé — il n'est jamais stocké, enregistré ni montré à l'agent.",
+        unlockOnePasswordDescription:
+          "Entrez votre mot de passe principal ou approuvez la connexion 1Password sur l'ordinateur qui exécute le backend Hermes. Le mot de passe est transmis au gestionnaire sur cet ordinateur puis supprimé — il n'est jamais stocké, enregistré ni montré à l'agent.",
+        unlockWithOnePasswordApp: 'Déverrouiller avec 1Password',
         masterPasswordPlaceholder: 'Mot de passe principal'
       }
     },

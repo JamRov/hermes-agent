@@ -80,6 +80,22 @@ A manager item that lists several websites (say `amazon.co.uk`,
 `www.amazon.co.uk` and `eu.account.amazon.com`) fills on each of those exact
 origins; nothing is inferred beyond the URLs saved on the item.
 
+For **1Password desktop-app integration**, choose **Unlock with 1Password** in
+the existing Settings unlock dialog. Approve the request in 1Password on the
+computer running the Hermes backend; for an SSH or remote connection, this is
+the remote computer. Enable **Settings → Developer → Integrate with 1Password
+CLI** and Windows Hello on Windows. You do not need to enter your 1Password
+master password into Hermes for this path. The agent can request the same flow
+with `browser_vault_unlock(backend="onepassword", method="app")` in an
+interactive session.
+
+Desktop authorization does not produce a CLI session token. Hermes verifies it
+with a metadata-only vault listing and keeps a profile-scoped unlock lease in
+memory. Lock, session teardown, and the 30-minute idle expiry still release that
+lease; checking status never opens an authorization prompt. A failed or declined
+app request leaves Hermes locked. Manual password sign-in remains available in
+the same dialog, and service accounts continue to support unattended use.
+
 Prefer not to use a detected manager? `hermes vault sources --disable bitwarden`,
 or the switch in **Settings → Passwords & Logins**.
 

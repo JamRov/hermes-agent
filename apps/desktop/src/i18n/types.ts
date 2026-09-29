@@ -936,6 +936,8 @@ export interface Translations {
         unlocked: (name: string) => string
         unlockTitle: (name: string) => string
         unlockDescription: string
+        unlockOnePasswordDescription: string
+        unlockWithOnePasswordApp: string
         masterPasswordPlaceholder: string
       }
     }

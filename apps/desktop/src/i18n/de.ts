@@ -1049,7 +1049,10 @@ export const deOverrides = {
         unlocked: name => `${name} ist für diese Session entsperrt.`,
         unlockTitle: name => `${name} entsperren`,
         unlockDescription:
-          'Geben Sie Ihr Master-Passwort ein. Es geht an den Passwortmanager auf diesem Rechner und wird danach verworfen – es wird nie gespeichert, protokolliert oder dem Agenten gezeigt.',
+          'Geben Sie Ihr Master-Passwort ein. Es wird an den Passwortmanager auf dem Computer übergeben, auf dem das Hermes-Backend läuft, und danach verworfen – es wird nie gespeichert, protokolliert oder dem Agenten gezeigt.',
+        unlockOnePasswordDescription:
+          'Geben Sie Ihr Master-Passwort ein oder bestätigen Sie die 1Password-Anmeldung auf dem Computer, auf dem das Hermes-Backend läuft. Ein eingegebenes Passwort wird an den Manager auf diesem Computer übergeben und verworfen – es wird nie gespeichert, protokolliert oder dem Agenten gezeigt.',
+        unlockWithOnePasswordApp: 'Mit 1Password entsperren',
         masterPasswordPlaceholder: 'Master-Passwort'
       }
     },
