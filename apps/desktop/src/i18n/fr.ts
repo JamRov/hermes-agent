@@ -1053,8 +1053,9 @@ export const frOverrides = {
         unlockDescription:
           "Entrez votre mot de passe principal. Il est transmis au gestionnaire sur l'ordinateur qui exécute le backend Hermes puis supprimé — il n'est jamais stocké, enregistré ni montré à l'agent.",
         unlockOnePasswordDescription:
-          "Entrez votre mot de passe principal ou approuvez la connexion 1Password sur l'ordinateur qui exécute le backend Hermes. Le mot de passe est transmis au gestionnaire sur cet ordinateur puis supprimé — il n'est jamais stocké, enregistré ni montré à l'agent.",
+          "Approuvez la connexion dans l'application 1Password sur l'ordinateur qui exécute le backend Hermes. Vous n'avez pas besoin de saisir votre mot de passe principal ici.",
         unlockWithOnePasswordApp: 'Déverrouiller avec 1Password',
+        unlockWithPassword: 'Utiliser plutôt un mot de passe',
         masterPasswordPlaceholder: 'Mot de passe principal'
       }
     },

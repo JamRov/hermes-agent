@@ -1094,8 +1094,9 @@ export const en: Translations = {
         unlockDescription:
           'Enter your master password. It is handed to the password manager on the computer running the Hermes backend and discarded — it is never stored, logged, or shown to the agent.',
         unlockOnePasswordDescription:
-          'Enter your master password, or approve 1Password sign-in on the computer running the Hermes backend. A password is handed to the manager on that computer and discarded — it is never stored, logged, or shown to the agent.',
+          'Approve sign-in in the 1Password app on the computer running the Hermes backend. You do not need to enter your master password here.',
         unlockWithOnePasswordApp: 'Unlock with 1Password',
+        unlockWithPassword: 'Use a password instead',
         masterPasswordPlaceholder: 'Master password'
       }
     },
