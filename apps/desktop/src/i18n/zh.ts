@@ -707,9 +707,11 @@ export const zh = defineLocale({
         lock: '锁定',
         unlocked: name => `${name} 已在本会话中解锁。`,
         unlockTitle: name => `解锁 ${name}`,
-        unlockDescription: '输入主密码。密码会交给运行 Hermes 后端的电脑上的密码管理器后立即丢弃，不会被存储、记录或展示给智能体。',
-        unlockOnePasswordDescription: '输入主密码，或在运行 Hermes 后端的电脑上批准 1Password 登录。输入的密码会交给该电脑上的管理器后立即丢弃，不会被存储、记录或展示给智能体。',
+        unlockDescription:
+          '输入主密码。密码会交给运行 Hermes 后端的电脑上的密码管理器后立即丢弃，不会被存储、记录或展示给智能体。',
+        unlockOnePasswordDescription: '请在运行 Hermes 后端的电脑上的 1Password 应用中批准登录。无需在此输入主密码。',
         unlockWithOnePasswordApp: '使用 1Password 解锁',
+        unlockWithPassword: '改用密码',
         masterPasswordPlaceholder: '主密码'
       }
     },

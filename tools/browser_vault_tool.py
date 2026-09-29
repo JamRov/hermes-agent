@@ -259,7 +259,7 @@ def browser_vault_list() -> str:
     return json.dumps(out, ensure_ascii=False)
 
 
-def browser_vault_unlock(backend_name: str, method: str = "password") -> str:
+def browser_vault_unlock(backend_name: str, method: str = "auto") -> str:
     """Unlock an external manager with a masked password prompt or its native app flow."""
     from agent.vault_backends import enabled_backends
     from agent.vault_backends.unlock import can_prompt_here, get_unlock_prompt_callback
@@ -267,9 +267,11 @@ def browser_vault_unlock(backend_name: str, method: str = "password") -> str:
     backend = next((b for b in enabled_backends() if b.name == backend_name and b.needs_unlock), None)
     if backend is None:
         return json.dumps({"success": False, "error": f"No unlockable vault backend named {backend_name!r}."})
-    if method not in {"password", "app"}:
+    if method not in {"auto", "password", "app"}:
         return json.dumps({"success": False, "error_type": "unlock_method_invalid",
-                           "error": "Unlock method must be 'password' or 'app'."})
+                           "error": "Unlock method must be 'auto', 'password', or 'app'."})
+    if method == "auto":
+        method = "app" if getattr(backend, "supports_app_unlock", False) else "password"
     if method == "app" and not getattr(backend, "supports_app_unlock", False):
         return json.dumps({"success": False, "error_type": "unlock_method_unsupported",
                            "error": f"{backend.display_name} does not support app-based unlock."})
@@ -620,19 +622,22 @@ BROWSER_VAULT_LIST_SCHEMA = {
 BROWSER_VAULT_UNLOCK_SCHEMA = {
     "name": "browser_vault_unlock",
     "description": (
-        "Unlock a password manager (1Password or Bitwarden) for this session. The default password method uses "
-        "a masked prompt whose contents never enter the conversation. For 1Password only, method='app' requests "
-        "native app authorization on the computer running the Hermes backend; it never opens a prompt in a "
-        "headless session. Returns success, unlock_cancelled, unlock_failed, unlock_method_unsupported, or "
-        "unlock_unavailable."
+        "Unlock a password manager (1Password or Bitwarden) for this session. By default, 1Password uses native "
+        "app authorization on the computer running the Hermes backend; other managers use a masked password "
+        "prompt. For 1Password, method='password' explicitly chooses the manual prompt instead. Native app "
+        "authorization is never requested in a headless session. Returns success, unlock_cancelled, "
+        "unlock_failed, unlock_method_unsupported, or unlock_unavailable."
     ),
     "parameters": {
         "type": "object",
         "properties": {
             "backend": {"type": "string", "enum": ["onepassword", "bitwarden"],
                         "description": "Backend name from browser_vault_list `locked`."},
-            "method": {"type": "string", "enum": ["password", "app"], "default": "password",
-                       "description": "Use app for native 1Password approval on the Hermes backend computer."},
+            "method": {"type": "string", "enum": ["auto", "password", "app"], "default": "auto",
+                       "description": (
+                           "Auto uses native app approval for 1Password and a masked password prompt otherwise; "
+                           "password forces the manual prompt."
+                       )},
         },
         "required": ["backend"],
     },
@@ -732,7 +737,7 @@ def _handle_vault_list(args: Dict[str, Any], **kwargs) -> str:
 
 
 def _handle_vault_unlock(args: Dict[str, Any], **kwargs) -> str:
-    return browser_vault_unlock(str(args.get("backend") or ""), method=str(args.get("method") or "password"))
+    return browser_vault_unlock(str(args.get("backend") or ""), method=str(args.get("method") or "auto"))
 
 
 def _handle_vault_fill(args: Dict[str, Any], **kwargs) -> str:

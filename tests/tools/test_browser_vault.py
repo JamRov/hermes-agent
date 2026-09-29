@@ -701,6 +701,71 @@ class TestSaveLoginPrompt:
 
 
 class TestVaultUnlockMethods:
+    def test_browser_fill_defaults_to_native_onepassword_unlock(self, monkeypatch):
+        from agent.vault_backends import unlock as unlock_mod
+        from tools import browser_vault_tool
+
+        class OnePassword:
+            name, display_name, needs_unlock = "onepassword", "1Password", True
+            supports_app_unlock = True
+
+            def __init__(self):
+                self.password = None
+
+            def is_unlocked(self):
+                return False
+
+            def unlock(self, password):
+                self.password = password
+
+            def get_meta(self, handle):
+                return None
+
+        backend = OnePassword()
+        monkeypatch.setattr("agent.vault_backends.backend_for_handle", lambda handle: backend)
+        monkeypatch.setattr("agent.vault_backends.enabled_backends", lambda: [backend])
+        asked = []
+        unlock_mod.set_unlock_prompt_callback(lambda *args: asked.append(args) or "must-not-be-used")
+        try:
+            with patch("agent.vault_backends.unlock.can_prompt_here", return_value=True):
+                browser_vault_tool.browser_vault_fill("op:example")
+        finally:
+            unlock_mod.set_unlock_prompt_callback(None)
+
+        assert backend.password == ""
+        assert asked == []
+
+    def test_unlock_handler_defaults_to_native_onepassword_method(self, monkeypatch):
+        from agent.vault_backends import unlock as unlock_mod
+        from tools import browser_vault_tool
+
+        class OnePassword:
+            name, display_name, needs_unlock = "onepassword", "1Password", True
+            supports_app_unlock = True
+
+            def __init__(self):
+                self.password = None
+
+            def is_unlocked(self):
+                return False
+
+            def unlock(self, password):
+                self.password = password
+
+        backend = OnePassword()
+        monkeypatch.setattr("agent.vault_backends.enabled_backends", lambda: [backend])
+        asked = []
+        unlock_mod.set_unlock_prompt_callback(lambda *args: asked.append(args) or "must-not-be-used")
+        try:
+            with patch("agent.vault_backends.unlock.can_prompt_here", return_value=True):
+                out = json.loads(browser_vault_tool._handle_vault_unlock({"backend": "onepassword"}))
+        finally:
+            unlock_mod.set_unlock_prompt_callback(None)
+
+        assert out["success"] is True
+        assert backend.password == ""
+        assert asked == []
+
     def test_app_method_unlocks_onepassword_without_masked_password_prompt(self, monkeypatch):
         from agent.vault_backends import unlock as unlock_mod
         from tools import browser_vault_tool

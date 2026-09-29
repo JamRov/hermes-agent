@@ -616,8 +616,9 @@ export const ja = defineLocale({
         unlockDescription:
           'マスターパスワードを入力してください。Hermes バックエンドを実行しているコンピューター上のマネージャーに渡された後に破棄され、保存・記録されることも、エージェントに表示されることもありません。',
         unlockOnePasswordDescription:
-          'マスターパスワードを入力するか、Hermes バックエンドを実行しているコンピューターで 1Password のサインインを承認してください。入力したパスワードはそのコンピューター上のマネージャーに渡された後に破棄され、保存・記録されることも、エージェントに表示されることもありません。',
+          'Hermes バックエンドを実行しているコンピューターの 1Password アプリでサインインを承認してください。ここでマスターパスワードを入力する必要はありません。',
         unlockWithOnePasswordApp: '1Password でロック解除',
+        unlockWithPassword: '代わりにパスワードを使用',
         masterPasswordPlaceholder: 'マスターパスワード'
       }
     },

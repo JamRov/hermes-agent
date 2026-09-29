@@ -1051,8 +1051,9 @@ export const deOverrides = {
         unlockDescription:
           'Geben Sie Ihr Master-Passwort ein. Es wird an den Passwortmanager auf dem Computer übergeben, auf dem das Hermes-Backend läuft, und danach verworfen – es wird nie gespeichert, protokolliert oder dem Agenten gezeigt.',
         unlockOnePasswordDescription:
-          'Geben Sie Ihr Master-Passwort ein oder bestätigen Sie die 1Password-Anmeldung auf dem Computer, auf dem das Hermes-Backend läuft. Ein eingegebenes Passwort wird an den Manager auf diesem Computer übergeben und verworfen – es wird nie gespeichert, protokolliert oder dem Agenten gezeigt.',
+          'Bestätigen Sie die Anmeldung in der 1Password-App auf dem Computer, auf dem das Hermes-Backend läuft. Hier müssen Sie Ihr Master-Passwort nicht eingeben.',
         unlockWithOnePasswordApp: 'Mit 1Password entsperren',
+        unlockWithPassword: 'Stattdessen Passwort verwenden',
         masterPasswordPlaceholder: 'Master-Passwort'
       }
     },
