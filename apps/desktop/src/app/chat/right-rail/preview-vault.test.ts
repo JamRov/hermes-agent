@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { $rightRailActiveTabId } from '@/store/layout'
-import { closeRightRail, openPreview, type PreviewTarget } from '@/store/preview'
+import { registryBackendScopeKey } from '@hermes/shared'
+
+import { closeRightRail, openPreview, setPreviewScope, type PreviewTarget } from '@/store/preview'
 
 import {
   invalidatePreviewScriptRunner,
@@ -33,6 +35,7 @@ describe('preview vault target binding', () => {
     cleanups.forEach(cleanup => cleanup())
     cleanups = []
     resetPreviewVaultBindingsForTests()
+    setPreviewScope(registryBackendScopeKey(scope.connectionId, scope.profile), { allowLegacyProfileTabs: false })
     closeRightRail()
   })
 
@@ -182,6 +185,66 @@ describe('preview vault target binding', () => {
       evaluatePreviewVaultBinding({ ...scope, target: 'unknown', expression: 'return 42', isSessionActive: () => true })
     ).resolves.toEqual({ decline: true })
     expect(run).not.toHaveBeenCalled()
+  })
+
+  it('keeps preview vault pages and bindings isolated for same-named remote profiles', async () => {
+    const connectionB = { ...scope, connectionId: 'connection-b', sessionId: 'session-b' }
+    openPreview(target('https://connection-a.example'))
+    const tabA = $rightRailActiveTabId.get()!
+    const runA = vi.fn(async () => 'connection-a')
+    cleanups.push(registerPreviewScriptRunner(tabA, runA))
+    const bindingA = openPreviewVaultBinding(scope)
+
+    if (!bindingA.success) {
+      throw new Error('expected a connection A preview binding')
+    }
+
+    expect(openPreviewVaultBinding(connectionB)).toEqual({
+      error: 'No live preview page is available.',
+      success: false
+    })
+
+    setPreviewScope(registryBackendScopeKey(connectionB.connectionId, connectionB.profile), {
+      allowLegacyProfileTabs: false
+    })
+    expect(openPreviewVaultBinding(connectionB)).toEqual({
+      error: 'No live preview page is available.',
+      success: false
+    })
+
+    openPreview(target('https://connection-b.example'))
+    const tabB = $rightRailActiveTabId.get()!
+    const runB = vi.fn(async () => 'connection-b')
+    cleanups.push(registerPreviewScriptRunner(tabB, runB))
+    const bindingB = openPreviewVaultBinding(connectionB)
+
+    if (!bindingB.success) {
+      throw new Error('expected a connection B preview binding')
+    }
+
+    await expect(
+      evaluatePreviewVaultBinding({
+        ...scope,
+        target: bindingB.target,
+        expression: 'return 42',
+        isSessionActive: () => true
+      })
+    ).resolves.toEqual({ decline: true })
+
+    await expect(
+      evaluatePreviewVaultBinding({
+        ...scope,
+        target: bindingA.target,
+        expression: 'return 42',
+        isSessionActive: () => true
+      })
+    ).resolves.toMatchObject({ success: false })
+    expect(runA).not.toHaveBeenCalled()
+    expect(runB).not.toHaveBeenCalled()
+
+    setPreviewScope(registryBackendScopeKey(scope.connectionId, scope.profile), { allowLegacyProfileTabs: false })
+    expect($rightRailActiveTabId.get()).toBe(tabA)
+    expect(openPreviewVaultBinding(scope)).toMatchObject({ success: true })
   })
 
   it('checks session activity both before and after executing the page script', async () => {

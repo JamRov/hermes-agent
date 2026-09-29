@@ -70,8 +70,8 @@ Sites that ask for a code after the password are handled the same way:
 
 Nothing to enable. If the `op` or `bw` command-line tool is installed, Hermes
 picks it up automatically and its website logins become fillable alongside the
-local ones. When an unlock is needed, 1Password uses native app authorization by
-default; approve the request in 1Password on the computer running the Hermes
+local ones. When an unlock is needed and the backend supports it, 1Password uses
+native app authorization by default; approve it on the computer running the Hermes
 backend. Bitwarden uses a masked master-password prompt. Unlocks last once per
 session, with a 30-minute idle timeout. Hermes passes manual passwords only
 through the manager's non-interactive CLI channel (`op signin` on stdin, `bw
@@ -84,8 +84,8 @@ origins; nothing is inferred beyond the URLs saved on the item.
 For **1Password desktop-app integration**, the existing Settings unlock dialog
 uses **Unlock with 1Password** by default; choose **Use a password instead** for
 manual sign-in. Enable **Settings → Developer → Integrate with 1Password CLI**
-and Windows Hello on Windows. For an SSH or remote connection, approve the
-request on the remote computer running the Hermes backend. You do not need to
+and Windows Hello on Windows. For an SSH or remote connection with an interactive
+desktop, approve the request on that remote computer. You do not need to
 enter your 1Password master password into Hermes for native authorization. In
 an interactive agent session, `browser_vault_unlock(backend="onepassword")`
 also uses native authorization by default; use `method="password"` to request
@@ -97,7 +97,44 @@ with a metadata-only vault listing and keeps a profile-scoped unlock lease in
 memory. Lock, session teardown, and the 30-minute idle expiry still release that
 lease; checking status never opens an authorization prompt. A failed or declined
 app request leaves Hermes locked. Manual password sign-in remains available in
-the same dialog, and service accounts continue to support unattended use.
+the same dialog when the backend supports it.
+
+### Remote and unattended profiles
+
+A remote profile authenticates on its backend host. Unlocking 1Password on your
+Desktop computer does not unlock a remote gateway. Passwords & Logins shows the
+methods reported by the selected backend; a headless host offers no desktop-app
+or master-password prompt. An older backend without this metadata shows a
+compatibility notice and uses its existing manual flow.
+
+For unattended access, configure an existing approved 1Password service account
+or Connect identity in that profile's secret store. Connect requires both
+`OP_CONNECT_HOST` and `OP_CONNECT_TOKEN`; a partial pair refuses access, and a
+complete pair takes precedence over a service-account token. A configured identity
+is not proof of authentication: actual item access must succeed.
+
+Select the intended vault in the profile's `config.yaml` for service-account
+access, especially when the identity has more than one vault:
+
+```yaml
+vault:
+  onepassword:
+    enabled: true
+    vault: "Automation"
+```
+
+The selector applies to listing logins, passwords and saved authenticator codes.
+Give each profile its own appropriately scoped identity. Service accounts and
+Connect have vault-access restrictions; check the provider's
+[service-account limits](https://www.1password.dev/service-accounts/get-started)
+and [Connect prerequisites](https://www.1password.dev/connect/get-started).
+
+A remote Desktop session fills its own selected local preview through the live
+connection. Headless gateway, API and scheduled sessions use their backend's
+supervised browser instead. That browser needs its own installed runtime and
+separate profile state. Saving a new login or requesting a code requires an
+interactive prompt; an unattended session can use existing permitted logins
+and saved authenticator codes.
 
 Prefer not to use a detected manager? `hermes vault sources --disable bitwarden`,
 or the switch in **Settings → Passwords & Logins**.

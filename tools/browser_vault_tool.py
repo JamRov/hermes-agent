@@ -297,11 +297,31 @@ def browser_vault_unlock(backend_name: str, method: str = "auto") -> str:
     if method not in {"auto", "password", "app"}:
         return json.dumps({"success": False, "error_type": "unlock_method_invalid",
                            "error": "Unlock method must be 'auto', 'password', or 'app'."})
+    capability_reader = getattr(backend, "auth_capabilities", None)
+    capabilities = capability_reader() if capability_reader else None
+    if capabilities and capabilities.get("mode") == "unavailable":
+        reason = capabilities.get("reason")
+        message = ("1Password Connect credentials are incomplete; configure both Connect host and token."
+                   if reason == "connect_incomplete" else
+                   "No supported 1Password unlock method is available on the backend host.")
+        return json.dumps({"success": False, "error_type": "unlock_unavailable", "error": message})
+    available_methods = set(capabilities.get("methods", [])) if capabilities else None
+    app_eligible = (bool(capabilities.get("native_app_eligible")) if capabilities
+                    else bool(getattr(backend, "supports_app_unlock", False)))
     if method == "auto":
-        method = "app" if getattr(backend, "supports_app_unlock", False) else "password"
-    if method == "app" and not getattr(backend, "supports_app_unlock", False):
+        if app_eligible:
+            method = "app"
+        elif available_methods is None or "password" in available_methods:
+            method = "password"
+        else:
+            return json.dumps({"success": False, "error_type": "unlock_unavailable",
+                               "error": "No supported 1Password unlock method is available on the backend host."})
+    if method == "app" and not app_eligible:
         return json.dumps({"success": False, "error_type": "unlock_method_unsupported",
                            "error": f"{backend.display_name} does not support app-based unlock."})
+    if method == "password" and available_methods is not None and "password" not in available_methods:
+        return json.dumps({"success": False, "error_type": "unlock_method_unsupported",
+                           "error": f"{backend.display_name} does not support password unlock on the backend host."})
     if backend.is_unlocked():
         return json.dumps({"success": True, "backend": backend.name, "already_unlocked": True})
     if not can_prompt_here():
@@ -312,7 +332,10 @@ def browser_vault_unlock(backend_name: str, method: str = "auto") -> str:
                                      "Desktop app first.")})
     if method == "app":
         try:
-            backend.unlock("")  # type: ignore[attr-defined]
+            if capabilities is not None:
+                backend.unlock(method="app")  # type: ignore[attr-defined]
+            else:
+                backend.unlock("")  # type: ignore[attr-defined]
         except Exception as exc:
             return json.dumps({"success": False, "error_type": "unlock_failed", "error": str(exc)[:300]})
         return json.dumps({"success": True, "backend": backend.name})
@@ -322,7 +345,10 @@ def browser_vault_unlock(backend_name: str, method: str = "auto") -> str:
         return json.dumps({"success": False, "error_type": "unlock_cancelled",
                            "error": f"The user declined to unlock {backend.display_name}."})
     try:
-        backend.unlock(master)  # type: ignore[attr-defined]
+        if capabilities is not None:
+            backend.unlock(master, method="password")  # type: ignore[attr-defined]
+        else:
+            backend.unlock(master)  # type: ignore[attr-defined]
     except Exception as exc:
         return json.dumps({"success": False, "error_type": "unlock_failed", "error": str(exc)[:300]})
     finally:

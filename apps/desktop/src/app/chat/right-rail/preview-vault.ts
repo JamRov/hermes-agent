@@ -3,6 +3,7 @@ import {
   type PreviewScriptRunner,
   resolveActivePreviewScriptRunner
 } from './preview-script-runner'
+import { isPreviewScopeActive } from '@/store/preview'
 
 export interface PreviewVaultScope {
   connectionId: null | string
@@ -60,6 +61,10 @@ function matchesScope(binding: Binding, input: PreviewVaultScope): boolean {
 
 /** Pin the exact reader-selected page and runner for one vault operation. */
 export function openPreviewVaultBinding(scope: PreviewVaultScope): PreviewVaultOpenResult {
+  if (!isPreviewScopeActive(scope.connectionId, scope.profile)) {
+    return { error: NO_PAGE, success: false }
+  }
+
   const active = resolveActivePreviewScriptRunner()
 
   if (!active) {

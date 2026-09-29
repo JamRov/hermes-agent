@@ -38,6 +38,10 @@ class LoginBackend(ABC):
     def is_unlocked(self) -> bool:
         return True
 
+    def auth_capabilities(self) -> Optional[Dict[str, object]]:
+        """Optional, configuration-only auth eligibility for backends with multiple modes."""
+        return None
+
     @abstractmethod
     def list_items(self) -> List[VaultItemMeta]:
         """Metadata only. Locked external backends return [] (the agent sees a lock hint instead)."""

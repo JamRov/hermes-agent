@@ -2121,6 +2121,14 @@ export interface VaultSource {
   needs_unlock: boolean
   unlocked: boolean
   installed: boolean
+  auth_capabilities?: VaultAuthCapabilities | null
+}
+/** Secret-free authentication choices resolved by the serving backend. */
+export interface VaultAuthCapabilities {
+  mode: 'interactive' | 'service_account' | 'connect' | 'unavailable'
+  methods: ('app' | 'password')[]
+  native_app_eligible: boolean
+  reason: string | null
 }
 export interface VaultSourceSetParams {
   profile?: string | null
@@ -2136,6 +2144,7 @@ export interface VaultUnlockParams {
   profile?: string | null
   name?: string | null
   password?: string | null
+  method?: 'app' | 'password' | null
 }
 export interface VaultUnlockResult {
   name: string

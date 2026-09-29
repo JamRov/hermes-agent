@@ -143,6 +143,10 @@ def test_native_app_unlock_accepts_empty_password(home, monkeypatch):
         needs_unlock = True
         supports_app_unlock = True
 
+        def auth_capabilities(self):
+            return {"mode": "interactive", "methods": ["app", "password"],
+                    "native_app_eligible": True, "reason": None}
+
         def __init__(self):
             self.received = None
 
@@ -156,6 +160,85 @@ def test_native_app_unlock_accepts_empty_password(home, monkeypatch):
 
     assert backend.received == ""
     assert result == {"name": "onepassword", "unlocked": True}
+
+
+def test_sources_include_secret_free_backend_auth_capabilities(home, monkeypatch):
+    capability = {"mode": "service_account", "methods": [],
+                  "native_app_eligible": False, "reason": None}
+
+    class OnePassword:
+        name = "onepassword"
+        needs_unlock = True
+        supports_app_unlock = True  # Legacy flag must not override host capability metadata.
+
+        def auth_capabilities(self):
+            return capability
+
+        def is_unlocked(self):
+            return False
+
+    monkeypatch.setattr("agent.vault_backends.enabled_backends", lambda: [OnePassword()])
+    row = _sources_rows(home)["onepassword"]
+
+    assert row["auth_capabilities"] == capability
+    assert "token" not in json.dumps(row).lower()
+    assert "secret" not in json.dumps(row).lower()
+
+
+@pytest.mark.parametrize(
+    ("capability", "requested_method", "password", "allowed"),
+    [
+        ({"mode": "interactive", "methods": ["app", "password"], "native_app_eligible": True, "reason": None}, "app", "", True),
+        ({"mode": "interactive", "methods": ["app", "password"], "native_app_eligible": True, "reason": None}, "password", "pw", True),
+        ({"mode": "service_account", "methods": [], "native_app_eligible": False, "reason": None}, "app", "", False),
+        ({"mode": "connect", "methods": [], "native_app_eligible": False, "reason": None}, "password", "pw", False),
+    ],
+)
+def test_unlock_validates_explicit_method_against_backend_capabilities(
+    home, monkeypatch, capability, requested_method, password, allowed
+):
+    class Backend:
+        name = "onepassword"
+        needs_unlock = True
+
+        def auth_capabilities(self):
+            return capability
+
+        def unlock(self, password, *, method=None):
+            self.received = (password, method)
+
+    backend = Backend()
+    monkeypatch.setattr("agent.vault_backends.enabled_backends", lambda: [backend])
+    result = srv._methods["vault.unlock"](
+        84, {"name": backend.name, "password": password, "method": requested_method}
+    )
+
+    if allowed:
+        assert _result(result) == {"name": backend.name, "unlocked": True}
+        assert backend.received == (password, requested_method)
+    else:
+        error = _error(result)
+        assert error["code"] == 5095
+        assert "not available" in error["message"].lower()
+        assert not hasattr(backend, "received")
+
+
+def test_legacy_backend_without_capability_metadata_keeps_old_unlock_request(home, monkeypatch):
+    class LegacyBackend:
+        name = "bitwarden"
+        needs_unlock = True
+        supports_app_unlock = False
+
+        def unlock(self, password):
+            self.received = password
+
+    backend = LegacyBackend()
+    monkeypatch.setattr("agent.vault_backends.enabled_backends", lambda: [backend])
+    result = _result(srv._methods["vault.unlock"](
+        86, {"name": "bitwarden", "password": "old-client"}
+    ))
+    assert result == {"name": "bitwarden", "unlocked": True}
+    assert backend.received == "old-client"
 
 
 def test_native_unlock_error_with_empty_password_is_not_corrupted_by_redaction(home, monkeypatch):
