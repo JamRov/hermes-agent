@@ -101,6 +101,14 @@ def _takeover_request(payload: dict[str, Any], argv_tail: list[str] | None) -> d
     request.setdefault("desktop", bool(payload.get("had_desktop_app_before_update", False)))
     request.setdefault("windows_resume", payload.get("windows_gateway_resume"))
     request.setdefault("assume_yes", "--yes" in (argv_tail or []))
+    request["no_gateway_restart"] = bool(
+        payload.get("no_gateway_restart", False) or "--no-gateway-restart" in (argv_tail or [])
+    )
+    if request["no_gateway_restart"] and isinstance(request["windows_resume"], dict):
+        # Consume the old caller's atexit token before handing off. The fresh
+        # completion child also receives the explicit flag and skips its resume.
+        request["windows_resume"]["no_gateway_restart"] = True
+        request["windows_resume"]["resume_needed"] = False
     request.setdefault("restart_update", False)
     return request
 

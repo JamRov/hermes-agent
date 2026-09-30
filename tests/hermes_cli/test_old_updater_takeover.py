@@ -78,6 +78,62 @@ def test_historical_payload_maps_to_takeover_request_schema(tmp_path, desktop, r
     assert "desktop" not in handoff and "assume_yes" not in handoff
 
 
+def test_historical_argv_defers_restart_and_consumes_windows_resume_token():
+    from hermes_cli import _old_updater
+
+    token = {"resume_needed": True, "profiles": {"work": "old-pid"}}
+    original_argv = sys.argv
+
+    def historical_update_frame():
+        gateway_mode = False
+        assume_yes = True
+        _windows_gateway_resume = token
+        _ = (gateway_mode, assume_yes, _windows_gateway_resume)
+        sys.argv = ["hermes", "update", "--yes", "--no-gateway-restart"]
+        try:
+            return _old_updater._historical_context()
+        finally:
+            sys.argv = original_argv
+
+    request, resumes, _receipt_slot = historical_update_frame()
+
+    assert request["no_gateway_restart"] is True
+    assert request["windows_resume"]["no_gateway_restart"] is True
+    assert request["windows_resume"]["resume_needed"] is False
+    assert resumes == [token]
+
+
+def test_legacy_post_swap_flag_is_forwarded_and_consumes_resume_token(tmp_path, monkeypatch):
+    from hermes_cli import _old_updater, update_handoff
+
+    token = {"resume_needed": True, "profiles": {"default": "old-pid"}}
+    handoff = tmp_path / "post_swap.json"
+    handoff.write_text(json.dumps({"windows_gateway_resume": token}), encoding="utf-8")
+    captured = {}
+
+    def run_child(request):
+        captured.update(request)
+        return 0, {"resume_handled": False}
+
+    monkeypatch.setattr(_old_updater, "_run_child", run_child)
+    code = update_handoff._continue_legacy_post_swap(
+        handoff, argv_tail=["update", "--yes", "--no-gateway-restart"],
+    )
+
+    assert code == 0
+    assert captured["no_gateway_restart"] is True
+    assert captured["windows_resume"]["no_gateway_restart"] is True
+    assert captured["windows_resume"]["resume_needed"] is False
+    assert not handoff.exists()
+
+    ordinary_token = {"resume_needed": True}
+    ordinary = update_handoff._takeover_request(
+        {"windows_gateway_resume": ordinary_token}, ["update", "--yes"],
+    )
+    assert ordinary["no_gateway_restart"] is False
+    assert ordinary_token["resume_needed"] is True
+
+
 @pytest.mark.live_system_guard_bypass
 def test_shipped_post_swap_argv_enters_takeover_before_current_cli(tmp_path):
     """The 2026.9.21 updater starts HEAD as ``hermes update <flags> --post-swap FILE``.

@@ -13,6 +13,8 @@ def test_restart_deferral_crosses_real_completion_process(transition):
     parser = argparse.ArgumentParser()
     build_update_parser(parser.add_subparsers(), cmd_update=lambda args: None)
     request["no_gateway_restart"] = parser.parse_args(["update", "--no-gateway-restart"]).no_gateway_restart
+    # Avoid the default Unicode checkmark announcement on Windows code pages.
+    request["completion_message"] = "Update completed."
     shutil.copy2(update_completion.__file__, root / "hermes_cli/update_completion.py")
     receipt = root / "hermes_cli/update_receipt.py"
     with receipt.open("a", encoding="utf-8") as stream:
@@ -26,6 +28,7 @@ def test_restart_deferral_crosses_real_completion_process(transition):
     assert result["receipt"]["outcome"] == "success"
     assert result["windows_resume"]["resume_needed"] is False
     events = [json.loads(line)["name"] for line in (root / "events.jsonl").read_text().splitlines()]
-    assert {"prepare", "build", "maintenance", "deferred", "emergency_resume"} <= set(events)
+    assert {"prepare", "build", "maintenance", "deferred"} <= set(events)
+    assert "emergency_resume" not in events
     assert "restart" not in events and "verify" not in events
     assert marker.read_text() == "pending"

@@ -54,6 +54,19 @@ def _historical_context() -> tuple[dict, list[dict], Any]:
     get_current = getattr(receipt_slot, "get", None)
     current = get_current() if get_current is not None else receipt_slot
     receipt = getattr(current, "data", None)
+    # This compatibility hook is entered by the historical CLI with the exact
+    # user argv. Do not inspect arbitrary stack objects for similarly named
+    # fields: the argv is the supported historical handoff contract.
+    no_gateway_restart = "--no-gateway-restart" in sys.argv
+    if no_gateway_restart:
+        # The fresh child must not resume gateways while unwinding this historical
+        # updater. A marker token carries the policy through older handoff schemas
+        # that have no dedicated no_gateway_restart field.
+        if not resumes:
+            resumes.append({"resume_needed": False, "no_gateway_restart": True})
+        for token in resumes:
+            token["no_gateway_restart"] = True
+            token["resume_needed"] = False
     plan = found.get("_pre_update_plan")
     if dataclasses.is_dataclass(plan) and not isinstance(plan, type):
         plan = dataclasses.asdict(plan)
@@ -67,6 +80,7 @@ def _historical_context() -> tuple[dict, list[dict], Any]:
         "pre_update_version": found.get("pre_update_version"),
         "gateway_mode": bool(found.get("gateway_mode", "--gateway" in sys.argv)),
         "assume_yes": bool(found.get("assume_yes", "--yes" in sys.argv)),
+        "no_gateway_restart": no_gateway_restart,
         "windows_resume": resumes[0] if resumes else None,
         "plan": plan,
         "receipt": receipt if isinstance(receipt, dict) else None,

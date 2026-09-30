@@ -1110,8 +1110,19 @@ def _refresh_windows_gateway_launchers() -> None:
             for message in warnings:
                 print(f"  ⚠ {message}")
             if gateway_windows.is_task_registered():
+                task_name = gateway_windows.get_task_name()
+                registered = gateway_windows._query_scheduled_task_xml(task_name)
+                settings = gateway_windows._task_xml_leaf_values(registered) if registered else None
+                if settings is None:
+                    print("  Windows gateway registration unchanged: task state could not be read")
+                    return
+                if settings and settings.get("Task/Settings/Enabled", "true").lower() == "false":
+                    # Reconciliation recreates the enabled template. A disabled
+                    # owner may be deliberately retired or paused for maintenance.
+                    print("  ✓ Kept disabled Windows gateway task registration")
+                    return
                 # A task registered by an older build never picks up template hardening otherwise (#113670).
-                gateway_windows.reconcile_scheduled_task(gateway_windows.get_task_name())
+                gateway_windows.reconcile_scheduled_task(task_name)
 
 
 def _refresh_bootstrap_cache_scripts(branch: str = "main") -> None:

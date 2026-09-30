@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from types import ModuleType
 
 import pytest
 
@@ -26,6 +27,67 @@ def _put(root, name, content):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
     return path
+
+
+def test_historical_no_gateway_restart_skips_fleet_and_windows_resume(tmp_path, monkeypatch):
+    from hermes_cli import update_cmd, update_finish, update_receipt
+
+    skipped = []
+    monkeypatch.setattr(update_cmd, "_run_post_update_maintenance", lambda **_kwargs: True)
+    monkeypatch.setattr(update_cmd, "_write_gateway_update_exit_code", lambda _success: None)
+    monkeypatch.setattr(update_receipt, "record_skip", lambda *args: skipped.append(args))
+    monkeypatch.setattr(
+        update_cmd, "_restart_gateway_fleet_after_update",
+        lambda *_args: pytest.fail("fleet restart ran for a deferred historical update"),
+    )
+    monkeypatch.setattr(
+        update_cmd, "_resume_windows_gateways_and_merge_outcome",
+        lambda *_args: pytest.fail("Windows resume ran for a deferred historical update"),
+    )
+    monkeypatch.setattr(
+        update_cmd, "_verify_fleet_after_update",
+        lambda *_args, **_kwargs: pytest.fail("fleet verification ran without a restart"),
+    )
+    token = {"resume_needed": True}
+
+    update_finish.finish_update(
+        root=tmp_path, assume_yes=True, gateway_mode=True, pre_update_snapshot_id=None,
+        had_desktop_app_before_update=False, pre_update_version="before", plan=None,
+        windows_resume=token, no_gateway_restart=True,
+    )
+
+    assert skipped == [("gateway_restart", "--no-gateway-restart: deferred, marker kept")]
+
+
+def test_historical_main_consumes_resume_token_without_running_resume(tmp_path, monkeypatch):
+    from hermes_cli import update_finish, update_receipt
+    from hermes_cli import main as cli
+    from hermes_cli import update_cmd_windows
+
+    root = tmp_path / "selected"
+    root.mkdir()
+    token = {"resume_needed": True}
+    request = {
+        "root": str(root), "restart_update": True, "argv": ["hermes", "update", "--no-gateway-restart"],
+        "gateway_mode": False, "no_gateway_restart": True, "windows_resume": token,
+        "receipt": {"update_id": "deferred-history"}, "update_id": "deferred-history",
+    }
+    context, result = tmp_path / "request.json", tmp_path / "result.json"
+    context.write_text(json.dumps(request), encoding="utf-8")
+    monkeypatch.setitem(sys.modules, "hermes_bootstrap", ModuleType("hermes_bootstrap"))
+    monkeypatch.setattr(cli, "main", lambda: None)
+    monkeypatch.setattr(
+        update_cmd_windows, "_resume_windows_gateways_after_update",
+        lambda *_args: pytest.fail("historical parent resume ran despite --no-gateway-restart"),
+    )
+    monkeypatch.setattr(update_receipt, "finalize_pending_update_receipt", lambda *_args: None)
+    original_argv = sys.argv
+    try:
+        assert update_finish.main(context, result) == 0
+    finally:
+        sys.argv = original_argv
+
+    assert json.loads(result.read_text(encoding="utf-8"))["resume_handled"] is True
 
 
 @pytest.fixture

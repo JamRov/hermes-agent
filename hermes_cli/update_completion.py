@@ -28,9 +28,14 @@ def _exit_status(code: int) -> int:
 
 def _failed_result(request: dict, result_path: Path, code: int) -> int:
     code = _exit_status(code) or 1
+    windows_resume = None
+    if request.get("no_gateway_restart"):
+        windows_resume = request.get("windows_resume")
+        if windows_resume is not None:
+            windows_resume = {**windows_resume, "resume_needed": False}
     _write_json(result_path, {
         "schema": 1, "update_id": request["receipt"]["update_id"], "exit_code": code,
-        "receipt": None, "windows_resume": None, "pm_receipt": request.get("pm_receipt"),
+        "receipt": None, "windows_resume": windows_resume, "pm_receipt": request.get("pm_receipt"),
     })
     return code
 
@@ -203,7 +208,7 @@ def _complete_selected(request: dict) -> None:
 
         record_skip("gateway_restart", "--no-gateway-restart: deferred, marker kept")
         record_stage("restart", "skipped")
-        print("→ Gateway restart deferred (--no-gateway-restart); restart gateways separately.")
+        print("Gateway restart deferred (--no-gateway-restart); restart gateways separately.")
         if not complete:
             raise SystemExit(1)
         return
@@ -265,12 +270,16 @@ def _finish(request: dict, result_path: Path) -> int:
             _write_gateway_update_exit_code(False)
         # The new interpreter owns recovery too. The original parent's atexit
         # token is updated from the response; it acts only if this process dies.
-        try:
-            from hermes_cli.update_cmd import _resume_windows_gateways_after_update
-            _resume_windows_gateways_after_update(request["windows_resume"])
-        except Exception as exc:
-            code, reason = 1, f"Windows gateway recovery failed: {exc}"
-            print(f"✗ {reason}")
+        if request.get("no_gateway_restart"):
+            if request["windows_resume"] is not None:
+                request["windows_resume"]["resume_needed"] = False
+        else:
+            try:
+                from hermes_cli.update_cmd import _resume_windows_gateways_after_update
+                _resume_windows_gateways_after_update(request["windows_resume"])
+            except Exception as exc:
+                code, reason = 1, f"Windows gateway recovery failed: {exc}"
+                print(f"✗ {reason}")
         update_receipt.finalize_pending_update_receipt(code, reason)
         terminal_receipt = _read_terminal_receipt(request)
         if not terminal_receipt:

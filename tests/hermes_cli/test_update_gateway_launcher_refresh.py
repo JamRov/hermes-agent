@@ -76,3 +76,28 @@ def test_restart_spec_normalizes_legacy_pythonw_argv(tmp_path):
 # ---------------------------------------------------------------------------
 # _refresh_windows_gateway_launchers: hermes update regenerates launchers
 # ---------------------------------------------------------------------------
+
+@pytest.mark.platforms("windows")
+@pytest.mark.parametrize("enabled, should_reconcile", [("false", False), ("true", True), (None, True), ("unavailable", False), ("invalid", False)])
+def test_update_preserves_disabled_gateway_registration(monkeypatch, enabled, should_reconcile):
+    from hermes_cli.update_cmd_windows import _refresh_windows_gateway_launchers
+
+    setting = f"<Enabled>{enabled}</Enabled>" if enabled is not None else ""
+    xml = f'<Task xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"><Settings>{setting}</Settings></Task>'
+    if enabled == "unavailable":
+        xml = None
+    elif enabled == "invalid":
+        xml = "<Task>"
+    write = mock.Mock()
+    reconcile = mock.Mock()
+    monkeypatch.setattr(gateway_windows, "is_installed", lambda: True)
+    monkeypatch.setattr(gateway_windows, "is_task_registered", lambda: True)
+    monkeypatch.setattr(gateway_windows, "get_task_name", lambda: "Hermes_Gateway_default")
+    monkeypatch.setattr(gateway_windows, "_query_scheduled_task_xml", lambda _name: xml)
+    monkeypatch.setattr(gateway_windows, "_write_task_script", write)
+    monkeypatch.setattr(gateway_windows, "reconcile_scheduled_task", reconcile)
+
+    _refresh_windows_gateway_launchers()
+
+    write.assert_called_once()
+    assert reconcile.call_count == int(should_reconcile)

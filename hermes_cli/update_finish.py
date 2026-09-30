@@ -8,7 +8,7 @@ import sys
 
 def finish_update(*, root, assume_yes, gateway_mode, pre_update_snapshot_id,
                   had_desktop_app_before_update, pre_update_version,
-                  plan, windows_resume) -> None:
+                  plan, windows_resume, no_gateway_restart: bool | None = None) -> None:
     """Finish the selected checkout; never fetch, switch branches or restore a stash."""
     from hermes_cli.update_cmd import (
         _run_post_update_maintenance,
@@ -29,6 +29,18 @@ def finish_update(*, root, assume_yes, gateway_mode, pre_update_snapshot_id,
     # Restart can kill this process's gateway cgroup; record its result first.
     if gateway_mode:
         _write_gateway_update_exit_code(complete)
+    defer_restart = (
+        bool(no_gateway_restart) if no_gateway_restart is not None
+        else bool((windows_resume or {}).get("no_gateway_restart", False))
+    )
+    if defer_restart:
+        from hermes_cli.update_receipt import record_skip
+
+        record_skip("gateway_restart", "--no-gateway-restart: deferred, marker kept")
+        print("Gateway restart deferred (--no-gateway-restart); restart gateways separately.")
+        if not complete:
+            raise SystemExit(1)
+        return
     restarted = _restart_gateway_fleet_after_update(plan, gateway_mode)
     _resume_windows_gateways_and_merge_outcome(restarted, windows_resume, gateway_mode)
     _verify_fleet_after_update(restarted, _pre_update_plan=plan,
@@ -55,6 +67,10 @@ def main(context: Path, result: Path) -> int:
     from hermes_cli import update_receipt
 
     token = request.get("windows_resume")
+    defer_restart = bool(
+        request.get("no_gateway_restart")
+        or (token or {}).get("no_gateway_restart", False)
+    )
     resume = None
     restarting = request.get("restart_update", False)
     cli_started = False
@@ -112,6 +128,7 @@ def main(context: Path, result: Path) -> int:
                     had_desktop_app_before_update=desktop,
                     pre_update_version=request.get("pre_update_version"),
                     plan=plan, windows_resume=token,
+                    no_gateway_restart=defer_restart,
                 )
         code = 0
     except SystemExit as exc:
@@ -126,12 +143,16 @@ def main(context: Path, result: Path) -> int:
             from hermes_cli.runtime_state import _atomic_bytes
 
             _atomic_bytes(get_hermes_home() / ".update_exit_code", b"1")
+        if defer_restart and token is not None:
+            # The historical parent may still run its atexit recovery callback.
+            # A deferred restart consumes that obligation without executing it.
+            token["resume_needed"] = False
         if restarting and not cli_started:
             # Startup failed before the replacement command could own a
             # receipt. Preserve the original handoff, just like preparation.
             update_receipt.begin_update_receipt(previous=request.get("receipt"), correlation_id=request["update_id"])
             begun = update_receipt._current.get() is not None
-        if resume is not None:
+        if resume is not None and not defer_restart:
             try:
                 resume(token)
             except Exception as exc:
