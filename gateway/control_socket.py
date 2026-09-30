@@ -254,20 +254,58 @@ class _PipeControlProtocol(asyncio.Protocol):
     def __init__(self, server: GatewayControlServer) -> None:
         self._server = server
         self._transport: Any = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._buffer = bytearray()
+        self._request_started = False
 
     def connection_made(self, transport) -> None:  # pragma: no cover - windows
         self._transport = transport
+        self._loop = asyncio.get_running_loop()
 
     def data_received(self, data: bytes) -> None:  # pragma: no cover - windows
+        if self._transport is None or self._request_started:
+            return
         self._buffer.extend(data)
         if len(self._buffer) > _MAX_REQUEST_BYTES:
-            self._transport.close()
+            self._close_transport()
         elif b"\n" in self._buffer:
+            self._request_started = True
+            raw = bytes(self._buffer).partition(b"\n")[0]
+            self._buffer.clear()
+            loop = self._loop
+            if loop is None:
+                self._close_transport()
+                return
             try:
-                self._transport.write(self._server.handle_request_line(bytes(self._buffer).partition(b"\n")[0]))
-            finally:
-                self._transport.close()
+                response = loop.run_in_executor(None, self._server.handle_request_line, raw)
+            except RuntimeError:
+                self._close_transport()
+                return
+            response.add_done_callback(self._request_completed)
+
+    def _request_completed(self, response: asyncio.Future) -> None:
+        transport = self._transport
+        if transport is None:
+            return
+        try:
+            payload = response.result()
+            if not isinstance(payload, bytes):
+                raise TypeError("control handler response was not bytes")
+            transport.write(payload)
+        except Exception:
+            logger.debug("Control pipe response failed", exc_info=True)
+        finally:
+            self._close_transport()
+
+    def _close_transport(self) -> None:
+        transport, self._transport = self._transport, None
+        if transport is not None:
+            with contextlib.suppress(Exception):
+                transport.close()
+
+    def connection_lost(self, exc: Optional[Exception]) -> None:  # pragma: no cover - windows
+        self._transport = None
+        self._buffer.clear()
 
 
 def query_gateway_control(home: Path, verb: str, *, params: Optional[dict[str, Any]] = None,

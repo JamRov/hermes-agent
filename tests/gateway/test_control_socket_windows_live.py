@@ -86,6 +86,32 @@ async def main():
 asyncio.run(main())
 """
 
+_LOOP_DISPATCH_CHILD_CODE = r"""
+import asyncio, os, sys, threading
+sys.path.insert(0, sys.argv[1])
+os.environ["HERMES_HOME"] = sys.argv[2]
+from gateway.control_socket import GatewayControlServer
+
+async def main():
+    loop = asyncio.get_running_loop()
+    finished = asyncio.Event()
+    def wait_for_loop_callback():
+        completed = threading.Event()
+        loop.call_soon_threadsafe(completed.set)
+        callback_ran = completed.wait(2.5)
+        loop.call_soon_threadsafe(finished.set)
+        return {"callback_ran": callback_ran}
+    server = GatewayControlServer(verb_handlers={"loop-roundtrip": wait_for_loop_callback})
+    ok = await server.start()
+    print(f"SERVER_STARTED {os.getpid()}" if ok else "SERVER_FAILED", flush=True)
+    if ok:
+        await asyncio.wait_for(finished.wait(), timeout=30)
+        await asyncio.sleep(0.1)
+        await server.stop()
+
+asyncio.run(main())
+"""
+
 
 @pytest.fixture()
 def live_server(tmp_path: Path):
@@ -221,3 +247,29 @@ def test_pipe_gone_after_kill_falls_back(live_server, monkeypatch):
     assert fleet[0]["pid"] == os.getpid()
     assert fleet[0]["code_sha"] is None
     assert fleet[0]["state"] == "unknown"
+
+
+def test_pipe_handler_can_wait_for_gateway_loop_callback(tmp_path: Path):
+    """A blocking pause handler must run off-loop so its scheduled callback can execute."""
+    from gateway.control_socket import query_gateway_control
+
+    home = tmp_path / ".hermes-loop-dispatch"
+    home.mkdir()
+    proc = subprocess.Popen(
+        [sys.executable, "-c", _LOOP_DISPATCH_CHILD_CODE, str(PROJECT_ROOT), str(home)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        cwd=str(PROJECT_ROOT),
+    )
+    try:
+        line = _readline(proc.stdout).strip()
+        if not line.startswith("SERVER_STARTED"):
+            err = proc.stderr.read() if proc.poll() is not None else ""
+            pytest.fail(f"loop-dispatch pipe server failed to start: {line!r} {err}")
+        result = query_gateway_control(home, "loop-roundtrip", timeout=6.0)
+        assert result == {"callback_ran": True}, result
+        assert proc.wait(timeout=5) == 0
+    finally:
+        if proc.poll() is None:
+            _kill_tree(proc)
